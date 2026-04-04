@@ -1,0 +1,21 @@
+# Environment & secrets
+.env
+.env.*
+secrets.json
+credentials.json
+*api_key*
+*token*
+
+# n8n local exports that may contain credentials
+*.bak.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log

@@ -1,0 +1,160 @@
+{
+  "name": "Instagram Scrapper",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Instagram Scrapper",
+        "formDescription": "What are you looking for?",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Account Type",
+              "placeholder": "e.g. Doctor, Fitness Coach, Chef",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Location",
+              "placeholder": "e.g. Mumbai, New York",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [-864, -112],
+      "id": "69934822-9db2-4d73-a9c7-908534907924",
+      "name": "On form submission",
+      "webhookId": "8f506fd0-de90-4b4f-937b-5008335e0d7f"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token={{$credentials.apifyApi.token}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"focusOnPaidAds\": false,\n  \"forceExactMatch\": false,\n  \"includeIcons\": false,\n  \"includeUnfilteredResults\": false,\n  \"maxPagesPerQuery\": 3,\n  \"mobileResults\": false,\n  \"queries\": \"site:instagram.com {{ $json['Account Type'] }} {{ $json.Location }}\",\n  \"resultsPerPage\": 100,\n  \"saveHtml\": false,\n  \"saveHtmlToKeyValueStore\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [-656, -112],
+      "id": "808f4c31-8cc3-4e34-bd35-97cb5fd72e65",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "unit": "seconds",
+        "amount": 30
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [-464, -256],
+      "id": "f27aeaab-8b78-4047-882e-79cfe54c23e1",
+      "name": "Wait 30s",
+      "webhookId": "aa876db8-0635-48c5-8f2d-da90eda2928e"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Helper: parse follower counts like \"22.7K\", \"1.2M\", \"500B\"\nconst parseFollowers = (raw) => {\n  if (!raw || typeof raw !== 'string') return null;\n  const clean = raw.trim().toUpperCase();\n  const match = clean.match(/([\\d.,]+)\\s*([KMB]?)/);\n  if (!match) return null;\n  let number = parseFloat(match[1].replace(',', ''));\n  const multiplier = match[2];\n  if (isNaN(number)) return null;\n  switch (multiplier) {\n    case 'K': return Math.round(number * 1000);\n    case 'M': return Math.round(number * 1000000);\n    case 'B': return Math.round(number * 1000000000);\n    default:  return Math.round(number);\n  }\n};\n\n// Helper: extract Instagram handle from URL\nconst extractHandle = (url) => {\n  if (!url) return '';\n  const match = url.match(/instagram\\.com\\/([^/?#]+)/);\n  return match ? '@' + match[1] : '';\n};\n\nconst creators = $json[\"organicResults\"] || [];\n\nreturn creators\n  .filter(c => c.url && c.url.includes('instagram.com'))\n  .map((creator) => {\n    const titleSplit = creator.title ? creator.title.split('(@') : [];\n    const name = titleSplit[0]?.trim() || 'Unknown';\n\n    // Prefer handle from title, fallback to URL extraction\n    const handleFromTitle = titleSplit[1]?.split(')')[0] || '';\n    const handle = handleFromTitle\n      ? '@' + handleFromTitle\n      : extractHandle(creator.url);\n\n    const rawFollowers = creator.followersAmount || '';\n    const cleanFollowers = parseFollowers(rawFollowers);\n\n    return {\n      json: {\n        Name:            name,\n        InstagramHandle: handle,\n        ProfileURL:      creator.url         || '',\n        Description:     creator.description || '',\n        Followers:       cleanFollowers,\n        ChannelName:     creator.channelName  || '',\n        PostType:        creator.type         || '',\n        Position:        creator.position     || null,\n      }\n    };\n  });\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-272, -112],
+      "id": "d8fa74f4-95b9-4a62-a2da-a75f7cb8034b",
+      "name": "Parse Results",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appUb23rJQrMbHXH5",
+          "mode": "list",
+          "cachedResultName": "instagram scrapper",
+          "cachedResultUrl": "https://airtable.com/appUb23rJQrMbHXH5"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbloZ4ibIOGUraTdA",
+          "mode": "list",
+          "cachedResultName": "Profiles",
+          "cachedResultUrl": "https://airtable.com/appUb23rJQrMbHXH5/tbloZ4ibIOGUraTdA"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name":            "={{ $json.Name }}",
+            "InstagramHandle": "={{ $json.InstagramHandle }}",
+            "ProfileURL":      "={{ $json.ProfileURL }}",
+            "Description":     "={{ $json.Description }}",
+            "Followers":       "={{ $json.Followers }}",
+            "ChannelName":     "={{ $json.ChannelName }}",
+            "PostType":        "={{ $json.PostType }}",
+            "Position":        "={{ $json.Position }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "Name",            "displayName": "Name",            "required": false, "defaultMatch": false, "canBeUsedToMatch": true, "display": true, "type": "string",  "readOnly": false, "removed": false },
+            { "id": "InstagramHandle", "displayName": "InstagramHandle", "required": false, "defaultMatch": false, "canBeUsedToMatch": true, "display": true, "type": "string",  "readOnly": false, "removed": false },
+            { "id": "ProfileURL",      "displayName": "ProfileURL",      "required": false, "defaultMatch": false, "canBeUsedToMatch": true, "display": true, "type": "string",  "readOnly": false, "removed": false },
+            { "id": "Description",     "displayName": "Description",     "required": false, "defaultMatch": false, "canBeUsedToMatch": true, "display": true, "type": "string",  "readOnly": false, "removed": false },
+            { "id": "Followers",       "displayName": "Followers",       "required": false, "defaultMatch": false, "canBeUsedToMatch": true, "display": true, "type": "number",  "readOnly": false, "removed": false },
+            { "id": "ChannelName",     "displayName": "ChannelName",     "required": false, "defaultMatch": false, "canBeUsedToMatch": true, "display": true, "type": "string",  "readOnly": false, "removed": false },
+            { "id": "PostType",        "displayName": "PostType",        "required": false, "defaultMatch": false, "canBeUsedToMatch": true, "display": true, "type": "string",  "readOnly": false, "removed": false },
+            { "id": "Position",        "displayName": "Position",        "required": false, "defaultMatch": false, "canBeUsedToMatch": true, "display": true, "type": "number",  "readOnly": false, "removed": false }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [-64, -112],
+      "id": "4d27bcdf-26a4-465d-9b65-77a779d70f1e",
+      "name": "Save to Airtable",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "ElP4Z3IUfbJgESBQ",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [[{ "node": "HTTP Request",  "type": "main", "index": 0 }]]
+    },
+    "HTTP Request": {
+      "main": [[{ "node": "Wait 30s",      "type": "main", "index": 0 }]]
+    },
+    "Wait 30s": {
+      "main": [[{ "node": "Parse Results", "type": "main", "index": 0 }]]
+    },
+    "Parse Results": {
+      "main": [[{ "node": "Save to Airtable", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": -1,
+    "availableInMCP": false
+  },
+  "versionId": "5f110d19-0aef-4bfc-86b8-fd437d577c5d",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "REPLACE_WITH_YOUR_INSTANCE_ID"
+  },
+  "tags": ["instagram", "scraper", "n8n", "automation"]
+}

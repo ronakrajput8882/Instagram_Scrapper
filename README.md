@@ -187,7 +187,7 @@ MIT License — free to use and modify.
 
 ## 👤 Author
 
-**Ronak Rajput**
+**Ronaksinh Rajput**
 - GitHub: [@ronakrajput8882](https://github.com/ronakrajput8882)
 
 ---
